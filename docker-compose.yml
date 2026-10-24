@@ -1,0 +1,24 @@
+# Local full stack: MongoDB + core API + AI service. The frontend runs with `npm run dev` in client/.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    volumes: [mongo-data:/data/db]
+
+  ai:
+    build: ./ai-service
+    env_file: ./ai-service/.env
+    ports: ["8000:8000"]
+
+  api:
+    build: ./server
+    env_file: ./server/.env
+    environment:
+      MONGO_URI: mongodb://mongo:27017/campusconnect
+      AI_SERVICE_URL: http://ai:8000
+    depends_on: [mongo, ai]
+    ports: ["4000:4000"]
+
+volumes:
+  mongo-data:

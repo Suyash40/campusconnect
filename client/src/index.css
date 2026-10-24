@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #FFFCF8;
+  --surface: #FFFFFF;
+  --text: #1F2937;
+  --muted: #6B7280;
+  --border: #E7E2DA;
+}
+:root[data-theme='dark'] {
+  --bg: #161411;
+  --surface: #211E1A;
+  --text: #F5F1EA;
+  --muted: #A8A29A;
+  --border: #3A352E;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #161411;
+    --surface: #211E1A;
+    --text: #F5F1EA;
+    --muted: #A8A29A;
+    --border: #3A352E;
+  }
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+}
+h1, h2 { letter-spacing: -0.01em; }
+.card { @apply rounded-lg border bg-[var(--surface)] p-5; border-color: var(--border); }
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50 disabled:cursor-not-allowed; }
+.btn-primary { @apply btn bg-brand-500 text-white hover:bg-brand-600; }
+.btn-secondary { @apply btn border bg-[var(--surface)] hover:bg-brand-50 dark:hover:bg-white/5; border-color: var(--border); }
+.btn-ghost { @apply btn hover:bg-black/5 dark:hover:bg-white/10; }
+.input { @apply w-full rounded-lg border bg-[var(--surface)] px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200; border-color: var(--border); }
+.label { @apply mb-1 block text-sm font-medium; }
+.skeleton { @apply animate-pulse rounded-md bg-black/10 dark:bg-white/10; }
