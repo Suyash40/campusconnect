@@ -74,4 +74,22 @@ describe.skipIf(!hasDb)('API integration', () => {
     const res = await request(app).get(`/api/opportunities/${draft._id}`).set('authorization', `Bearer ${studentToken}`);
     expect(res.status).toBe(404);
   });
+
+  it('lists only open placement drives the student is eligible for', async () => {
+    const coord = await User.findOne({ role: 'coordinator' });
+    const base = {
+      club: clubId, status: 'published', publishedAt: new Date(), createdBy: coord!._id,
+      category: 'placement', eventStart: new Date(Date.now() + 9 * 86400000), registrationUrl: 'https://example.com/r',
+    } as const;
+    const deadline = new Date(Date.now() + 5 * 86400000);
+    await Announcement.create([
+      { ...base, title: 'Eligible CSE drive', registrationDeadline: deadline, eligibility: { branches: ['CSE'], years: [3, 4] } },
+      { ...base, title: 'ECE only drive', registrationDeadline: deadline, eligibility: { branches: ['ECE'], years: [] } },
+      { ...base, title: 'Closed drive', registrationDeadline: new Date(Date.now() - 86400000), eligibility: { branches: [], years: [] } },
+      { ...base, title: 'Hackathon', category: 'hackathon', registrationDeadline: deadline, eligibility: { branches: [], years: [] } },
+    ]);
+    const res = await request(app).get('/api/placements').set('authorization', `Bearer ${studentToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.map((o: { title: string }) => o.title)).toEqual(['Eligible CSE drive']);
+  });
 });

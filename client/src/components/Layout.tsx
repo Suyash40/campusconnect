@@ -4,7 +4,7 @@ import { Navigate, NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Compass, Ticket, Bookmark, Bell, Bot, Users, User, Settings,
   Megaphone, CalendarDays, BarChart3, ShieldCheck, LogOut, Menu, X, Sparkles,
-  Building2, Flag, ClipboardList,
+  Building2, Flag, ClipboardList, Briefcase,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useQuery } from '@tanstack/react-query';
@@ -17,6 +17,7 @@ const STUDENT_NAV: Item[] = [
   { to: '/opportunities', label: 'Opportunities', icon: Compass },
   { to: '/registrations', label: 'My registrations', icon: Ticket },
   { to: '/saved', label: 'Saved', icon: Bookmark },
+  { to: '/placements', label: 'Placement drives', icon: Briefcase },
   { to: '/applications', label: 'Applications', icon: ClipboardList },
   { to: '/notifications', label: 'Notifications', icon: Bell },
   { to: '/assistant', label: 'CampusBot', icon: Bot },

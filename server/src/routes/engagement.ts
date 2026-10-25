@@ -14,7 +14,7 @@ import { answerQuestion } from '../services/aiClient.js';
 import { followedClubIds } from './users.js';
 
 const router = Router();
-router.use(['/registrations', '/saved', '/recommendations', '/applications', '/notifications', '/dashboard', '/assistant'], requireAuth);
+router.use(['/registrations', '/saved', '/recommendations', '/applications', '/notifications', '/dashboard', '/assistant', '/placements'], requireAuth);
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, 'Invalid id');
 
 const summaryOf = (a: unknown, now = new Date()) =>
@@ -204,7 +204,24 @@ router.get('/dashboard/student', async (req, res) => {
     trending: eligibleOnly(trendingRaw).slice(0, 5).map((a) => ({ ...summaryOf(a, now), engagement: a.registrationCount + a.saveCount })),
     followedClubUpdates: clubRaw.slice(0, 5).map((a) => summaryOf(a, now)),
     recent: eligibleOnly(recentRaw).slice(0, 5).map((a) => summaryOf(a, now)),
+    placements: await eligiblePlacements(user, now, 5),
   });
+});
+
+// ---------- Placement drives ----------
+
+/** Active placement drives the student is eligible for, earliest event first. Drives for other branches or years are not returned. */
+async function eligiblePlacements(user: { branch: string; year: number | null }, now: Date, limit: number) {
+  const raw = await Announcement.find({ status: 'published', category: 'placement', ...activeFilter(now) })
+    .sort({ eventStart: 1 }).limit(200).populate({ path: 'club', select: 'name' }).lean();
+  return raw
+    .filter((a) => checkEligibility(a.eligibility, { branch: user.branch, year: user.year }).eligible)
+    .slice(0, limit)
+    .map((a) => summaryOf(a, now));
+}
+
+router.get('/placements', async (req, res) => {
+  ok(res, await eligiblePlacements(req.user!, new Date(), 50));
 });
 
 // ---------- CampusBot ----------
