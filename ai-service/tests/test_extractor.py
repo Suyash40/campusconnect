@@ -71,6 +71,31 @@ def test_verification_drops_urls_not_in_source():
     assert set(dropped) == {"registrationUrl", "organizerName"}
 
 
+def test_generated_title_uses_organizer_and_category_not_the_sentence():
+    item = extract_one(SAMPLE, 2026)
+    assert item.title == "Coding Club Hackathon"
+    assert "title" in item.uncertainFields
+    assert "organizing" not in item.title and "15" not in item.title
+
+
+def test_labelled_title_is_used_as_written_and_not_flagged():
+    item = extract_one("Title: Code Sprint 2026\nHackathon on 15 November. Register at https://example.com/r", 2026)
+    assert item.title == "Code Sprint 2026"
+    assert "title" not in item.uncertainFields
+
+
+def test_title_without_organizer_falls_back_to_category_label():
+    item = extract_one("Hackathon on 15 November. Register at https://example.com/r", 2026)
+    assert item.title == "Hackathon"
+    assert "title" in item.uncertainFields
+
+
+def test_no_category_and_no_label_leaves_title_missing():
+    item = extract_one("Lunch will be served at noon. Bring your own plate.", 2026)
+    assert item.title is None
+    assert "title" in item.missingFields
+
+
 def test_broad_technical_word_does_not_make_category_ambiguous():
     item = extract_one("Coding hackathon on 15 November. Register at https://example.com/r", 2026)
     assert item.category == "hackathon"

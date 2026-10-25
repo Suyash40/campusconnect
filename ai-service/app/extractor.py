@@ -126,6 +126,36 @@ def _team_size(text: str) -> tuple[int | None, int | None]:
     return None, None
 
 
+CATEGORY_LABELS: dict[str, str] = {
+    "hackathon": "Hackathon",
+    "internship": "Internship",
+    "placement": "Placement Drive",
+    "workshop": "Workshop",
+    "seminar": "Seminar",
+    "technical": "Technical Event",
+    "cultural": "Cultural Event",
+    "club_recruitment": "Recruitment",
+    "competition": "Competition",
+    "notice": "Notice",
+}
+
+EXPLICIT_TITLE_RE = re.compile(r"^\s*(?:title|event(?: name)?|name of (?:the )?event)\s*[:\-]\s*(.+?)\s*$", re.I | re.M)
+
+
+def _title(text: str, category: Category | None, organizer: str | None) -> tuple[str | None, bool]:
+    """Returns (title, generated). A labelled title in the message is used as written. Otherwise the title is built from the organizer and category, and flagged as uncertain."""
+    m = EXPLICIT_TITLE_RE.search(text)
+    if m:
+        return m.group(1)[:120], False
+    if not category:
+        return None, False
+    label = CATEGORY_LABELS[category]
+    if organizer:
+        name = re.sub(r"^the\s+", "", organizer, flags=re.I).strip()
+        return f"{name} {label}"[:120], True
+    return label, True
+
+
 def extract_one(text: str, reference_year: int) -> ExtractedAnnouncement:
     sentences = _sentences(text)
     uncertain: set[str] = set()
@@ -213,8 +243,8 @@ def extract_one(text: str, reference_year: int) -> ExtractedAnnouncement:
         contact = ", ".join(x.group(0) for x in (email, phone) if x)
 
     benefits = next((s for s in sentences if re.search(r"certificate|prize|stipend|cash|goodies|reward|₹|rs\.?\s?\d", s, re.I)), None)
-    title = next((s[:120] for s in sentences if category and re.search(CATEGORY_KEYWORDS_PATTERN[category], s, re.I)), None)
-    if title:
+    title, title_generated = _title(text, category, organizer)
+    if title_generated:
         uncertain.add("title")
     description = text.strip()[:2000]
 
@@ -261,9 +291,6 @@ def extract_one(text: str, reference_year: int) -> ExtractedAnnouncement:
     result.missingFields = missing
     result.uncertainFields = sorted(uncertain)
     return result
-
-
-CATEGORY_KEYWORDS_PATTERN = {c: p for c, p in CATEGORY_KEYWORDS}
 
 
 def split_segments(text: str) -> list[str]:
