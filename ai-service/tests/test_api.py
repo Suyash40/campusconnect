@@ -30,4 +30,4 @@ def test_assistant_answers_from_records_only():
 
 def test_assistant_says_unknown_without_records():
     res = client.post("/v1/assistant", json={"question": "Any cricket events?", "records": []})
-    assert "could not find" in res.json()["answer"]
+    assert "could not find anything" in res.json()["answer"]

@@ -8,6 +8,7 @@ import StudentDashboard from './pages/student/Dashboard';
 import Opportunities from './pages/student/Opportunities';
 import OpportunityDetail from './pages/student/OpportunityDetail';
 import { Registrations, Saved, Applications } from './pages/student/Lists';
+import Placements from './pages/student/Placements';
 import Notifications from './pages/student/Notifications';
 import Assistant from './pages/student/Assistant';
 import Clubs from './pages/student/Clubs';
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/opportunities/:id" element={<OpportunityDetail />} />
         <Route path="/registrations" element={<ProtectedRoute roles={['student']}><Registrations /></ProtectedRoute>} />
         <Route path="/saved" element={<ProtectedRoute roles={['student']}><Saved /></ProtectedRoute>} />
+        <Route path="/placements" element={<ProtectedRoute roles={['student']}><Placements /></ProtectedRoute>} />
         <Route path="/applications" element={<ProtectedRoute roles={['student']}><Applications /></ProtectedRoute>} />
         <Route path="/notifications" element={<ProtectedRoute roles={['student']}><Notifications /></ProtectedRoute>} />
         <Route path="/assistant" element={<ProtectedRoute roles={['student']}><Assistant /></ProtectedRoute>} />

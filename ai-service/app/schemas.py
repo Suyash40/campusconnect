@@ -56,7 +56,7 @@ class ExtractResponse(BaseModel):
 
 
 class AssistantRequest(BaseModel):
-    question: str = Field(min_length=3, max_length=500)
+    question: str = Field(min_length=1, max_length=500)
     records: list[dict] = Field(default_factory=list, max_length=20)
 
 

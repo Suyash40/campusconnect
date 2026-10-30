@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Bot, Bookmark, ClipboardList, Ticket } from 'lucide-react';
+import { Bot, Bookmark, Briefcase, ClipboardList, Ticket } from 'lucide-react';
 import { EmptyState, ErrorState, PageHeader, Skeleton } from '../../components/ui';
 import { OpportunityCard } from '../../components/OpportunityCard';
 import type { OpportunityItem } from '../../components/OpportunityCard';
@@ -9,6 +9,7 @@ import { useAuth } from '../../lib/auth';
 
 interface Dashboard {
   profile: { name: string; branch: string; year: number | null; college: string; onboarded: boolean };
+  placements: OpportunityItem[];
   recommended: OpportunityItem[];
   upcoming: OpportunityItem[];
   deadlines: OpportunityItem[];
@@ -67,6 +68,16 @@ export default function StudentDashboard() {
               <Link to="/profile" className="btn-primary">Update profile</Link>
             </div>
           )}
+
+          <section aria-labelledby="placements" className="mt-8">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 id="placements" className="flex items-center gap-2 text-lg font-semibold"><Briefcase className="h-5 w-5 text-brand-600" aria-hidden />Placement drives</h2>
+              <Link to="/placements" className="text-sm font-medium text-brand-600 hover:underline">View all</Link>
+            </div>
+            {d.placements.length === 0
+              ? <p className="card text-sm text-[var(--muted)]">No open placement drives for your branch and year right now. <Link to="/placements" className="text-brand-600">Check the placements page</Link> for updates.</p>
+              : <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{d.placements.map((o) => <OpportunityCard key={o.id} item={o} />)}</div>}
+          </section>
 
           <Section title="Recommended for you" items={d.recommended} empty="No open opportunities match your profile yet. Browse all opportunities to see more.">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
