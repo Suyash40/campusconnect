@@ -27,7 +27,7 @@ export default function Assistant() {
 
   const send = (question: string) => {
     const q = question.trim();
-    if (q.length < 3 || ask.isPending) return;
+    if (!q || ask.isPending) return;
     setTurns((t) => [...t, { role: 'user', text: q }]);
     setInput('');
     ask.mutate(q);
