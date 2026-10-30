@@ -92,4 +92,12 @@ describe.skipIf(!hasDb)('API integration', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.map((o: { title: string }) => o.title)).toEqual(['Eligible CSE drive']);
   });
+
+  it('answers short greetings and accepts a one-character question', async () => {
+    const hi = await request(app).post('/api/assistant').set('authorization', `Bearer ${studentToken}`).send({ question: 'hi' });
+    expect(hi.status).toBe(200);
+    expect(hi.body.data.answer).toMatch(/^Hey CSE!/);
+    const one = await request(app).post('/api/assistant').set('authorization', `Bearer ${studentToken}`).send({ question: 'x' });
+    expect(one.status).toBe(200);
+  });
 });

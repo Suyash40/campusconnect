@@ -68,7 +68,7 @@ export default function Assistant() {
       <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); send(input); }}>
         <label htmlFor="ask" className="sr-only">Ask CampusBot</label>
         <input id="ask" className="input" maxLength={500} placeholder="Ask about events, deadlines or clubs" value={input} onChange={(e) => setInput(e.target.value)} />
-        <Button type="submit" disabled={input.trim().length < 3 || ask.isPending} aria-label="Send question"><Send className="h-4 w-4" aria-hidden /></Button>
+        <Button type="submit" disabled={!input.trim() || ask.isPending} aria-label="Send question"><Send className="h-4 w-4" aria-hidden /></Button>
       </form>
     </div>
   );

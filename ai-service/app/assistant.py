@@ -3,8 +3,8 @@
 
 def rules_answer(records: list[dict]) -> str:
     if not records:
-        return "I could not find matching campus records for that question."
-    lines = [f"I found {len(records)} matching {'record' if len(records) == 1 else 'records'}:"]
+        return "Oops, I could not find anything for that one 😕 Try a different category, a date, or a club name."
+    lines = [f"Here you go! I found {len(records)} {'match' if len(records) == 1 else 'matches'} for you 🙌"]
     for r in records[:8]:
         deadline = r.get("registrationDeadline")
         when = f"registration closes {deadline[:10]}" if deadline else "no registration deadline listed"

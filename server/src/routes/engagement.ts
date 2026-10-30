@@ -257,10 +257,15 @@ export function questionToFilter(question: string, now: Date) {
   return { filter, terms };
 }
 
-const assistantSchema = z.object({ question: z.string().trim().min(3).max(500) });
+const assistantSchema = z.object({ question: z.string().trim().min(1).max(500) });
+const GREETING = /^(hi+|hey+|hello+|hola|yo|sup|namaste|good (morning|afternoon|evening))[\s!.?]*$/i;
 router.post('/assistant', async (req, res) => {
   const { question } = assistantSchema.parse(req.body);
   const user = req.user!;
+  if (GREETING.test(question)) {
+    const name = user.name.split(' ')[0] || 'there';
+    return ok(res, { answer: `Hey ${name}! 👋 I'm CampusBot. Ask me about hackathons, placement drives, deadlines or clubs. For example: "Which placement drives are open?"`, records: [], provider: 'rules' });
+  }
   const now = new Date();
   const { filter, terms } = questionToFilter(question, now);
   if (terms.length) {
@@ -268,7 +273,7 @@ router.post('/assistant', async (req, res) => {
     filter.$and = [...((filter.$and as unknown[]) ?? []), { $or: [{ title: { $in: regex } }, { tags: { $in: regex } }, { requiredSkills: { $in: regex } }, { organizerName: { $in: regex } }, { description: { $in: regex } }] }];
   }
   if (Object.keys(filter).length === 2 && !terms.length) {
-    return ok(res, { answer: 'Ask about a category, a date, a deadline, or a skill, for example "Which hackathons are open for registration?"', records: [], provider: 'rules' });
+    return ok(res, { answer: 'Hmm, I am not sure what you mean yet 🤔 Try asking about hackathons, placement drives, deadlines or clubs. For example: "Which hackathons are open for registration?"', records: [], provider: 'rules' });
   }
 
   // Retrieve from the database, then enforce permissions: students only see records they are eligible for.
@@ -287,7 +292,7 @@ router.post('/assistant', async (req, res) => {
   }));
 
   if (records.length === 0) {
-    return ok(res, { answer: 'I could not find matching campus records for that question. Try a different category or date.', records: [], provider: 'rules' });
+    return ok(res, { answer: 'Oops, I could not find anything for that one 😕 Try a different category, a date, or a club name.', records: [], provider: 'rules' });
   }
 
   let answer: string;
@@ -298,7 +303,7 @@ router.post('/assistant', async (req, res) => {
     provider = ai.provider;
   } catch {
     // The AI service is optional. Fall back to a plain summary built only from the records.
-    answer = `I found ${records.length} matching ${records.length === 1 ? 'record' : 'records'} on campus:`;
+    answer = `Here you go! I found ${records.length} ${records.length === 1 ? 'match' : 'matches'} for you 🙌`;
   }
   ok(res, { answer, records, provider });
 });
