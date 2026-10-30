@@ -100,4 +100,27 @@ describe.skipIf(!hasDb)('API integration', () => {
     const one = await request(app).post('/api/assistant').set('authorization', `Bearer ${studentToken}`).send({ question: 'x' });
     expect(one.status).toBe(200);
   });
+
+  it('answers a named date with matches, or the closest drives when nothing falls on it', async () => {
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const istDay = (days: number) => new Date(Date.now() + days * 86400000 + 330 * 60000);
+    const label = (d: Date) => `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
+    const day = istDay(10);
+    const coord = await User.findOne({ role: 'coordinator' });
+    await Announcement.create({
+      title: 'Date test drive', category: 'placement', club: clubId, status: 'published', publishedAt: new Date(),
+      createdBy: coord!._id, registrationUrl: 'https://example.com/r', registrationDeadline: istDay(5),
+      eventStart: new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), 4, 30)),
+      eligibility: { branches: ['CSE'], years: [3] },
+    });
+    const titles = (body: { data: { records: { title: string }[] } }) => body.data.records.map((r) => r.title);
+
+    const onDay = await request(app).post('/api/assistant').set('authorization', `Bearer ${studentToken}`).send({ question: `is there any drive on ${label(day)}` });
+    expect(onDay.body.data.answer).toMatch(/^Yes!/);
+    expect(titles(onDay.body)).toContain('Date test drive');
+
+    const otherDay = await request(app).post('/api/assistant').set('authorization', `Bearer ${studentToken}`).send({ question: `is there any drive on ${label(istDay(20))}` });
+    expect(otherDay.body.data.answer).toMatch(/^Nothing on/);
+    expect(titles(otherDay.body)).toContain('Date test drive');
+  });
 });

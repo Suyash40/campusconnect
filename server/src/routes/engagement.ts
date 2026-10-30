@@ -11,6 +11,7 @@ import { activeFilter, opportunityStatus, toOpportunitySummary, toRankable } fro
 import { checkEligibility } from '../services/eligibility.js';
 import { rankOpportunities, RankableOpportunity } from '../services/recommender.js';
 import { answerQuestion } from '../services/aiClient.js';
+import { parseDate, smallTalkReply } from '../services/assistantIntent.js';
 import { followedClubIds } from './users.js';
 
 const router = Router();
@@ -230,7 +231,7 @@ const STOP = new Set(['the', 'a', 'an', 'of', 'for', 'and', 'or', 'to', 'in', 'o
 const CATEGORY_WORDS: Record<string, string> = {
   hackathon: 'hackathon', hackathons: 'hackathon', workshop: 'workshop', workshops: 'workshop',
   seminar: 'seminar', seminars: 'seminar', internship: 'internship', internships: 'internship',
-  placement: 'placement', placements: 'placement', competition: 'competition', competitions: 'competition',
+  placement: 'placement', placements: 'placement', drive: 'placement', drives: 'placement', competition: 'competition', competitions: 'competition',
   cultural: 'cultural', technical: 'technical', recruitment: 'club_recruitment', notice: 'notice', notices: 'notice',
 };
 
@@ -258,28 +259,14 @@ export function questionToFilter(question: string, now: Date) {
 }
 
 const assistantSchema = z.object({ question: z.string().trim().min(1).max(500) });
-const GREETING = /^(hi+|hey+|hello+|hola|yo|sup|namaste|good (morning|afternoon|evening))[\s!.?]*$/i;
-router.post('/assistant', async (req, res) => {
-  const { question } = assistantSchema.parse(req.body);
-  const user = req.user!;
-  if (GREETING.test(question)) {
-    const name = user.name.split(' ')[0] || 'there';
-    return ok(res, { answer: `Hey ${name}! 👋 I'm CampusBot. Ask me about hackathons, placement drives, deadlines or clubs. For example: "Which placement drives are open?"`, records: [], provider: 'rules' });
-  }
-  const now = new Date();
-  const { filter, terms } = questionToFilter(question, now);
-  if (terms.length) {
-    const regex = terms.map((t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
-    filter.$and = [...((filter.$and as unknown[]) ?? []), { $or: [{ title: { $in: regex } }, { tags: { $in: regex } }, { requiredSkills: { $in: regex } }, { organizerName: { $in: regex } }, { description: { $in: regex } }] }];
-  }
-  if (Object.keys(filter).length === 2 && !terms.length) {
-    return ok(res, { answer: 'Hmm, I am not sure what you mean yet 🤔 Try asking about hackathons, placement drives, deadlines or clubs. For example: "Which hackathons are open for registration?"', records: [], provider: 'rules' });
-  }
 
-  // Retrieve from the database, then enforce permissions: students only see records they are eligible for.
-  const candidates = await Announcement.find(filter).sort({ registrationDeadline: 1, eventStart: 1 }).limit(40).populate('club', 'name').lean();
-  const visible = candidates.filter((a) => user.role !== 'student' || checkEligibility(a.eligibility, { branch: user.branch, year: user.year }).eligible).slice(0, 8);
-  const records = visible.map((a) => ({
+type Viewer = { role: string; branch: string; year: number | null };
+
+/** Retrieves records the viewer may see. Students only get drives they are eligible for. */
+async function findRecords(filter: Record<string, unknown>, viewer: Viewer, now: Date, sort: Record<string, 1 | -1>, limit: number) {
+  const candidates = await Announcement.find(filter).sort(sort).limit(40).populate('club', 'name').lean();
+  const visible = candidates.filter((a) => viewer.role !== 'student' || checkEligibility(a.eligibility, { branch: viewer.branch, year: viewer.year }).eligible).slice(0, limit);
+  return visible.map((a) => ({
     id: String(a._id),
     title: a.title,
     category: a.category,
@@ -290,6 +277,41 @@ router.post('/assistant', async (req, res) => {
     link: `/opportunities/${String(a._id)}`,
     registrationUrl: a.registrationUrl,
   }));
+}
+
+router.post('/assistant', async (req, res) => {
+  const { question } = assistantSchema.parse(req.body);
+  const user = req.user!;
+  const chat = smallTalkReply(question, user.name.split(' ')[0] || 'there');
+  if (chat) return ok(res, { answer: chat, records: [], provider: 'rules' });
+
+  const now = new Date();
+  const day = parseDate(question, now);
+  const { filter, terms: keywordTerms } = questionToFilter(question, now);
+  // A named date is matched exactly, so the keyword search is skipped for it.
+  const terms = day ? [] : keywordTerms;
+  if (day) filter.eventStart = { $gte: day.start, $lt: day.end };
+  if (terms.length) {
+    const regex = terms.map((t) => new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+    filter.$and = [...((filter.$and as unknown[]) ?? []), { $or: [{ title: { $in: regex } }, { tags: { $in: regex } }, { requiredSkills: { $in: regex } }, { organizerName: { $in: regex } }, { description: { $in: regex } }] }];
+  }
+  if (Object.keys(filter).length === 2 && !terms.length && !day) {
+    return ok(res, { answer: 'Hmm, I am not sure what you mean yet 🤔 Try asking about hackathons, placement drives, deadlines or clubs. For example: "Which hackathons are open for registration?"', records: [], provider: 'rules' });
+  }
+
+  const records = await findRecords(filter, user, now, { registrationDeadline: 1, eventStart: 1 }, 8);
+
+  if (day) {
+    // A specific date gets a direct answer. When nothing falls on that day, offer the closest upcoming matches instead.
+    if (records.length > 0) {
+      return ok(res, { answer: `Yes! I found ${records.length} ${records.length === 1 ? 'match' : 'matches'} on ${day.label} 🙌`, records, provider: 'rules' });
+    }
+    const upcoming = await findRecords({ ...filter, eventStart: { $gte: now } }, user, now, { eventStart: 1 }, 3);
+    const answer = upcoming.length
+      ? `Nothing on ${day.label} 🙁 Here are the closest ones coming up:`
+      : `Nothing on ${day.label} 🙁 and nothing else coming up that fits. Try another date or category.`;
+    return ok(res, { answer, records: upcoming, provider: 'rules' });
+  }
 
   if (records.length === 0) {
     return ok(res, { answer: 'Oops, I could not find anything for that one 😕 Try a different category, a date, or a club name.', records: [], provider: 'rules' });
